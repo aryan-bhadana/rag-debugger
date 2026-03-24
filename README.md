@@ -1,3 +1,11 @@
+---
+title: RAG Debugger
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+---
+
 # RAG Debugger: Making LLM Systems Reliable
 
 Most RAG systems focus on getting *an answer*.  
@@ -180,6 +188,40 @@ python -m uvicorn app.main:app
 ```text
 http://127.0.0.1:8000/ui
 ```
+
+---
+
+## Deploying to Hugging Face Spaces
+
+This repo can be deployed as a Docker Space with the full system intact.
+
+1. Create a new Space on Hugging Face.
+2. Select:
+   - **SDK:** Docker
+   - **Hardware:** CPU Basic (free)
+3. Push this repository to the Space.
+4. In the Space settings, add these secrets:
+
+```text
+GROQ_API_KEY=your_groq_api_key
+HF_TOKEN=your_huggingface_token
+```
+
+5. Wait for the Docker build to finish.
+
+The Space will serve the UI at the root URL, and the API will still be available from:
+
+```text
+/query
+/search
+/health
+/api
+```
+
+Notes:
+
+- Hugging Face Spaces free CPU hardware provides significantly more RAM than Render free, which makes it a better fit for the full embedding-based system.
+- The first query can still be slower than later ones because the embedding model may need to warm up.
 
 ---
 

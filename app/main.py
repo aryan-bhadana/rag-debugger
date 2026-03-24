@@ -174,8 +174,13 @@ def _run_auto_fix_pipeline(query: str) -> dict[str, Any]:
     }
 
 
-@app.api_route("/", methods=["GET", "HEAD"])
-async def read_root() -> dict[str, str]:
+@app.get("/")
+async def read_root() -> FileResponse:
+    return FileResponse(FRONTEND_FILE)
+
+
+@app.api_route("/api", methods=["GET", "HEAD"])
+async def api_root() -> dict[str, str]:
     return {"message": "RAG Debugger backend is running."}
 
 
