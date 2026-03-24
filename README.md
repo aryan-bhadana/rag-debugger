@@ -15,6 +15,13 @@ This project focuses on something more important:
 
 ---
 
+## Live Demo
+
+- **App:** https://aryanbhadana089-rag-debugger.hf.space
+- **Space:** https://huggingface.co/spaces/aryanbhadana089/rag-debugger
+
+---
+
 ## Overview
 
 This is a production-style Retrieval-Augmented Generation (RAG) system with a built-in debugging and self-improvement layer.
@@ -174,7 +181,7 @@ PowerShell:
 
 ```powershell
 $env:GROQ_API_KEY="your_key_here"
-$env:FRONTEND_ORIGINS="http://127.0.0.1:8000"
+$env:HF_TOKEN="your_huggingface_token"
 ```
 
 4. Start the backend:
@@ -186,12 +193,12 @@ python -m uvicorn app.main:app
 5. Open the UI:
 
 ```text
-http://127.0.0.1:8000/ui
+http://127.0.0.1:8000/
 ```
 
 ---
 
-## Deploying to Hugging Face Spaces
+## Deployment
 
 This repo can be deployed as a Docker Space with the full system intact.
 
@@ -222,54 +229,6 @@ Notes:
 
 - Hugging Face Spaces free CPU hardware provides significantly more RAM than Render free, which makes it a better fit for the full embedding-based system.
 - The first query can still be slower than later ones because the embedding model may need to warm up.
-
----
-
-## Deploying to Render and Vercel
-
-This repo is set up for a split deployment:
-
-- **Render** hosts the FastAPI backend
-- **Vercel** hosts the static frontend
-
-### Render backend
-
-1. Create a new **Web Service** on Render and connect this repo.
-2. Render will pick up [render.yaml](render.yaml).
-3. Set these environment variables in Render:
-
-```text
-GROQ_API_KEY=your_groq_api_key
-FRONTEND_ORIGINS=https://your-vercel-project.vercel.app
-```
-
-4. Deploy the service and copy the public Render URL.
-
-### Vercel frontend
-
-1. Import the same repo into Vercel.
-2. The frontend is served from [frontend/index.html](frontend/index.html).
-3. Update [vercel.json](vercel.json) and replace:
-
-```text
-https://your-render-service.onrender.com
-```
-
-with your real Render backend URL.
-
-4. Deploy on Vercel.
-
-After that:
-
-- the frontend root URL loads the UI
-- `/query` on Vercel is proxied to the Render backend
-- the backend accepts requests only from the configured `FRONTEND_ORIGINS`
-
-If you want to keep everything on Render only, you can also skip Vercel and use:
-
-```text
-https://your-render-service.onrender.com/ui
-```
 
 ---
 
