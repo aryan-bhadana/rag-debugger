@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
 
+from app.core.config import settings
 from app.debug.auto_fix import AutoFixEngine
 from app.debug.diagnoser import Diagnoser
 from app.debug.evaluator import DebugEvaluator
@@ -21,11 +22,13 @@ from app.rag.vector_store import VectorStore
 from app.services.llm import LLMService
 
 
-app = FastAPI(title="RAG Debugger API")
+app = FastAPI(title=settings.app_name)
+CORS_ORIGINS = settings.frontend_origins or ["*"]
+ALLOW_CREDENTIALS = bool(settings.frontend_origins)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=ALLOW_CREDENTIALS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
