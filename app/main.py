@@ -15,7 +15,6 @@ from app.debug.diagnoser import Diagnoser
 from app.debug.suggester import Suggester
 from app.models.schemas import QueryRequest
 from app.rag.loader import load_and_chunk
-from app.services.llm import LLMService
 
 
 app = FastAPI(title=settings.app_name)
@@ -37,7 +36,7 @@ embedding_model: Any | None = None
 debug_evaluator: Any | None = None
 vector_store: Any | None = None
 hybrid_retriever: Any | None = None
-llm_service: LLMService | None = None
+llm_service: Any | None = None
 query_cache: dict[tuple[str, int], dict[str, Any]] = {}
 
 
@@ -84,10 +83,12 @@ def _build_vector_store(file_path: str = "data/docs.txt"):
     return vector_store
 
 
-def _get_llm_service() -> LLMService:
+def _get_llm_service():
     global llm_service
 
     if llm_service is None:
+        from app.services.llm import LLMService
+
         llm_service = LLMService()
 
     return llm_service
@@ -173,9 +174,14 @@ def _run_auto_fix_pipeline(query: str) -> dict[str, Any]:
     }
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def read_root() -> dict[str, str]:
     return {"message": "RAG Debugger backend is running."}
+
+
+@app.api_route("/health", methods=["GET", "HEAD"])
+async def health_check() -> dict[str, str]:
+    return {"status": "ok"}
 
 
 @app.get("/ui")
