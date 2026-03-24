@@ -12,13 +12,9 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.debug.auto_fix import AutoFixEngine
 from app.debug.diagnoser import Diagnoser
-from app.debug.evaluator import DebugEvaluator
 from app.debug.suggester import Suggester
 from app.models.schemas import QueryRequest
-from app.rag.embeddings import EmbeddingModel
 from app.rag.loader import load_and_chunk
-from app.rag.retrieval import BM25Retriever, HybridRetriever
-from app.rag.vector_store import VectorStore
 from app.services.llm import LLMService
 
 
@@ -34,24 +30,49 @@ app.add_middleware(
 )
 
 FRONTEND_FILE = Path("frontend/index.html")
-embedding_model = EmbeddingModel()
-debug_evaluator = DebugEvaluator(embedding_model)
 diagnoser = Diagnoser()
 suggester = Suggester()
 auto_fix_engine = AutoFixEngine()
-vector_store: VectorStore | None = None
-hybrid_retriever: HybridRetriever | None = None
+embedding_model: Any | None = None
+debug_evaluator: Any | None = None
+vector_store: Any | None = None
+hybrid_retriever: Any | None = None
 llm_service: LLMService | None = None
 query_cache: dict[tuple[str, int], dict[str, Any]] = {}
 
 
-def _build_vector_store(file_path: str = "data/docs.txt") -> VectorStore:
+def _get_embedding_model():
+    global embedding_model
+
+    if embedding_model is None:
+        from app.rag.embeddings import EmbeddingModel
+
+        embedding_model = EmbeddingModel()
+
+    return embedding_model
+
+
+def _get_debug_evaluator():
+    global debug_evaluator
+
+    if debug_evaluator is None:
+        from app.debug.evaluator import DebugEvaluator
+
+        debug_evaluator = DebugEvaluator(_get_embedding_model())
+
+    return debug_evaluator
+
+
+def _build_vector_store(file_path: str = "data/docs.txt"):
     global hybrid_retriever
     global vector_store
 
+    from app.rag.retrieval import BM25Retriever, HybridRetriever
+    from app.rag.vector_store import VectorStore
+
     chunks = load_and_chunk(file_path)
     texts = [chunk["text"] for chunk in chunks]
-    embeddings = embedding_model.encode(texts)
+    embeddings = _get_embedding_model().encode(texts)
 
     if not embeddings:
         raise ValueError("No embeddings were generated from the provided documents.")
@@ -83,7 +104,7 @@ def run_pipeline(query: str, top_k: int = 3) -> dict[str, Any]:
     context_chunks = [result["chunk"]["text"] for result in top_results if result["chunk"]["text"].strip()]
 
     if not context_chunks:
-        debug = debug_evaluator.evaluate(query, [], "I don't know")
+        debug = _get_debug_evaluator().evaluate(query, [], "I don't know")
         result = {
             "query": query,
             "answer": "I don't know",
@@ -103,7 +124,7 @@ def run_pipeline(query: str, top_k: int = 3) -> dict[str, Any]:
     except ValueError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    debug = debug_evaluator.evaluate(query, top_results, answer)
+    debug = _get_debug_evaluator().evaluate(query, top_results, answer)
 
     result = {
         "query": query,
