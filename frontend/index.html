@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAG Debugger</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-900">
+  <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+    <div class="mb-8">
+      <p class="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">RAG Debugger</p>
+      <h1 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">Before vs After Query Comparison</h1>
+      <p class="mt-3 max-w-2xl text-sm text-slate-600">
+        Run a query through the backend and compare the original result against the auto-fixed result.
+      </p>
+      <p id="systemStatus" class="mt-3 text-sm font-medium text-slate-500">Enter a query to analyze system behavior</p>
+    </div>
+
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <label for="queryInput" class="mb-2 block text-sm font-medium text-slate-700">Query</label>
+      <div class="flex flex-col gap-3 sm:flex-row">
+        <input
+          id="queryInput"
+          type="text"
+          placeholder="Ask a question (e.g., 'How do refunds work?')"
+          class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
+        >
+        <button
+          id="runButton"
+          class="rounded-xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+        >
+          Run Query
+        </button>
+      </div>
+      <div class="mt-3 flex items-center gap-3 text-sm text-slate-500">
+        <div id="spinner" class="hidden h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-sky-600"></div>
+        <p id="status">Enter a query to analyze system behavior</p>
+      </div>
+      <div class="mt-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Try an example</p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <button type="button" class="example-query rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 transition hover:border-sky-300 hover:bg-sky-50" data-query="refund refund refund">refund refund refund</button>
+          <button type="button" class="example-query rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 transition hover:border-sky-300 hover:bg-sky-50" data-query="How do refunds work?">How do refunds work?</button>
+          <button type="button" class="example-query rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 transition hover:border-sky-300 hover:bg-sky-50" data-query="Does Stripe support crypto refunds?">Does Stripe support crypto refunds?</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="resultsShell" class="hidden">
+      <div class="mt-8 grid gap-6 lg:grid-cols-2">
+        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-xl font-semibold text-slate-900">Before (Original)</h2>
+            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">Original</span>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Query</p>
+              <p id="beforeQuery" class="mt-1 text-sm text-slate-800">-</p>
+            </div>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Answer</p>
+              <div class="mt-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                <p id="beforeAnswer" class="whitespace-pre-wrap text-sm leading-8 text-slate-700">-</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Confidence</p>
+                <p id="beforeConfidence" class="mt-2 text-2xl font-semibold text-slate-900">-</p>
+                <div class="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
+                  <div id="beforeConfidenceBar" class="h-full w-0 rounded-full bg-slate-400 transition-all duration-500"></div>
+                </div>
+              </div>
+              <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Failure Type</p>
+                <span id="beforeFailure" class="mt-2 inline-flex rounded-full px-3 py-1 text-sm font-semibold bg-slate-200 text-slate-700">-</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div class="mb-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <h2 class="text-xl font-semibold text-slate-900">After (Auto-Fix)</h2>
+              <span id="improvedBadge" class="hidden rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Improved</span>
+            </div>
+            <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">Auto-Fix</span>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Query</p>
+              <p id="afterQuery" class="mt-1 text-sm text-slate-800">-</p>
+            </div>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Fix Applied</p>
+              <ul id="afterFixApplied" class="mt-2 space-y-2 text-sm text-slate-700">
+                <li class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">No fix needed (query was already valid)</li>
+              </ul>
+            </div>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Answer</p>
+              <div class="mt-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                <p id="afterAnswer" class="whitespace-pre-wrap text-sm leading-8 text-slate-700">-</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Confidence</p>
+                <p id="afterConfidence" class="mt-2 text-2xl font-semibold text-slate-900">-</p>
+                <p id="confidenceDelta" class="mt-2 text-sm font-semibold text-slate-500">-</p>
+                <div class="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
+                  <div id="afterConfidenceBar" class="h-full w-0 rounded-full bg-slate-400 transition-all duration-500"></div>
+                </div>
+              </div>
+              <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Failure Type</p>
+                <span id="afterFailure" class="mt-2 inline-flex rounded-full px-3 py-1 text-sm font-semibold bg-slate-200 text-slate-700">-</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="mt-8 grid gap-6 lg:grid-cols-2">
+        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 class="text-xl font-semibold text-slate-900">Diagnosis</h2>
+          <ul id="diagnosisList" class="mt-4 space-y-3 text-sm text-slate-700">
+            <li class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">No diagnosis yet.</li>
+          </ul>
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 class="text-xl font-semibold text-slate-900">Suggestions</h2>
+          <ul id="suggestionsList" class="mt-4 space-y-3 text-sm text-slate-700">
+            <li class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">No suggestions yet.</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const queryInput = document.getElementById("queryInput");
+    const runButton = document.getElementById("runButton");
+    const statusText = document.getElementById("status");
+    const systemStatus = document.getElementById("systemStatus");
+    const spinner = document.getElementById("spinner");
+    const improvedBadge = document.getElementById("improvedBadge");
+    const confidenceDelta = document.getElementById("confidenceDelta");
+    const resultsShell = document.getElementById("resultsShell");
+    const exampleQueryButtons = document.querySelectorAll(".example-query");
+
+    function getSystemStatus(before, after) {
+      const beforeFailure = before?.debug?.failure_type ?? "";
+      const afterFailure = after?.debug?.failure_type ?? "";
+      const afterGrounding = Number(after?.debug?.grounding_score ?? 0);
+      const afterConfidence = Number(after?.debug?.confidence ?? 0);
+
+      if (beforeFailure === "success" && afterFailure === "success") {
+        return "Query valid | Retrieval successful | Response grounded";
+      }
+
+      if (beforeFailure === "query_issue" && afterFailure === "success") {
+        return "Query issue detected -> Auto-fix applied -> Improved result";
+      }
+
+      if (afterFailure === "missing_context") {
+        return "Missing knowledge base context -> Unable to answer";
+      }
+
+      if (afterFailure === "success" && afterGrounding >= 0.5 && afterConfidence >= 0.5) {
+        return "Query valid | Retrieval successful | Response grounded";
+      }
+
+      if (beforeFailure && beforeFailure !== afterFailure) {
+        return `${beforeFailure.replaceAll("_", " ")} detected -> Auto-fix applied -> ${afterFailure.replaceAll("_", " ")}`;
+      }
+
+      return "Partial system recovery -> Review diagnosis and suggestions";
+    }
+
+    function getConfidenceStyles(confidenceValue) {
+      if (confidenceValue >= 0.75) {
+        return { bar: "bg-emerald-500", text: "text-emerald-700" };
+      }
+
+      if (confidenceValue >= 0.4) {
+        return { bar: "bg-amber-400", text: "text-amber-700" };
+      }
+
+      return { bar: "bg-rose-500", text: "text-rose-700" };
+    }
+
+    function getFailureBadgeClasses(failureType) {
+      switch (failureType) {
+        case "success":
+          return "bg-emerald-100 text-emerald-700";
+        case "query_issue":
+          return "bg-orange-100 text-orange-700";
+        case "missing_context":
+          return "bg-rose-100 text-rose-700";
+        case "grounding_failure":
+          return "bg-violet-100 text-violet-700";
+        default:
+          return "bg-slate-200 text-slate-700";
+      }
+    }
+
+    function getFailureTooltip(failureType) {
+      switch (failureType) {
+        case "success":
+          return "Response is well grounded and confident";
+        case "query_issue":
+          return "Query is repetitive or poorly formed";
+        case "missing_context":
+          return "Relevant information not found in knowledge base";
+        case "grounding_failure":
+          return "Answer not well supported by retrieved context";
+        default:
+          return "Failure type information unavailable";
+      }
+    }
+
+    function setConfidence(prefix, confidence) {
+      const confidenceValue = typeof confidence === "number" ? confidence : 0;
+      const percentage = Math.max(0, Math.min(100, Math.round(confidenceValue * 100)));
+      const label = document.getElementById(`${prefix}Confidence`);
+      const bar = document.getElementById(`${prefix}ConfidenceBar`);
+      const styles = getConfidenceStyles(confidenceValue);
+
+      label.textContent = `${percentage}%`;
+      label.className = `mt-2 text-2xl font-semibold ${styles.text}`;
+      bar.className = `h-full rounded-full transition-all duration-500 ${styles.bar}`;
+      bar.style.width = `${percentage}%`;
+    }
+
+    function setFailureBadge(prefix, failureType) {
+      const badge = document.getElementById(`${prefix}Failure`);
+      const value = failureType || "-";
+      badge.textContent = value;
+      badge.className = `mt-2 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${getFailureBadgeClasses(value)}`;
+      badge.title = getFailureTooltip(value);
+    }
+
+    function setColumn(prefix, data) {
+      document.getElementById(`${prefix}Query`).textContent = data?.query ?? "-";
+      document.getElementById(`${prefix}Answer`).textContent = data?.answer ?? "-";
+      setConfidence(prefix, Number(data?.debug?.confidence ?? 0));
+      setFailureBadge(prefix, data?.debug?.failure_type ?? "-");
+    }
+
+    function renderList(elementId, items) {
+      const element = document.getElementById(elementId);
+      const fallback = elementId === "afterFixApplied"
+        ? ["No fix needed (query was already valid)"]
+        : ["No data available."];
+      const values = Array.isArray(items) && items.length ? items : fallback;
+
+      element.innerHTML = values
+        .map((item) => `<li class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">${item}</li>`)
+        .join("");
+    }
+
+    async function runQuery() {
+      const query = queryInput.value.trim();
+      if (!query) {
+        statusText.textContent = "Please enter a query";
+        systemStatus.textContent = "Enter a query to analyze system behavior";
+        queryInput.focus();
+        return;
+      }
+
+      runButton.disabled = true;
+      spinner.classList.remove("hidden");
+      improvedBadge.classList.add("hidden");
+      resultsShell.classList.remove("hidden");
+      confidenceDelta.textContent = "-";
+      confidenceDelta.className = "mt-2 text-sm font-semibold text-slate-500";
+      statusText.textContent = "Running query...";
+      systemStatus.textContent = "Analyzing query, retrieval, and grounding...";
+
+      try {
+        const response = await fetch("/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query,
+            auto_fix: true
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const before = data.before ?? {};
+        const after = data.after ?? before;
+
+        setColumn("before", before);
+        setColumn("after", after);
+        renderList("afterFixApplied", after.fix_applied);
+        renderList("diagnosisList", after.diagnosis);
+        renderList("suggestionsList", after.suggestions);
+        systemStatus.textContent = getSystemStatus(before, after);
+
+        const beforeConfidence = Number(before?.debug?.confidence ?? 0);
+        const afterConfidence = Number(after?.debug?.confidence ?? 0);
+        const delta = afterConfidence - beforeConfidence;
+        const deltaPercent = Math.round(delta * 100);
+
+        if (delta > 0) {
+          improvedBadge.classList.remove("hidden");
+          confidenceDelta.textContent = `+${deltaPercent}% improvement`;
+          confidenceDelta.className = "mt-2 text-sm font-semibold text-emerald-700";
+        } else if (delta < 0) {
+          confidenceDelta.textContent = `${deltaPercent}% decline`;
+          confidenceDelta.className = "mt-2 text-sm font-semibold text-rose-700";
+        } else {
+          confidenceDelta.textContent = "0% change";
+          confidenceDelta.className = "mt-2 text-sm font-semibold text-slate-500";
+        }
+
+        statusText.textContent = "Query completed successfully.";
+      } catch (error) {
+        statusText.textContent = error.message || "Something went wrong while running the query.";
+        systemStatus.textContent = "Unable to evaluate system status due to request failure.";
+      } finally {
+        spinner.classList.add("hidden");
+        runButton.disabled = false;
+      }
+    }
+
+    runButton.addEventListener("click", runQuery);
+    queryInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        runQuery();
+      }
+    });
+
+    exampleQueryButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        queryInput.value = button.dataset.query || "";
+        queryInput.focus();
+      });
+    });
+  </script>
+</body>
+</html>

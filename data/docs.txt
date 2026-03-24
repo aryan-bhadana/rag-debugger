@@ -1,0 +1,7 @@
+Stripe Refunds
+
+You can issue refunds to customers for charges.
+Partial refunds are supported.
+Refunds can be created via the API using the /v1/refunds endpoint.
+
+Refund processing time depends on the payment method.
